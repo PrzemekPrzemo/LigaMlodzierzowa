@@ -14,10 +14,12 @@ use App\Core\Database;
 $config = Bootstrap::init();
 $pdo = Database::pdo($config['db']);
 
-$files = [
-    dirname(__DIR__) . '/database/migrations/001_schema.sql',
-    dirname(__DIR__) . '/database/seeds/001_seed.sql',
-];
+$base = dirname(__DIR__);
+$files = array_merge(
+    glob($base . '/database/migrations/*.sql') ?: [],
+    glob($base . '/database/seeds/*.sql') ?: []
+);
+sort($files, SORT_NATURAL);
 
 foreach ($files as $file) {
     if (!is_file($file)) {
