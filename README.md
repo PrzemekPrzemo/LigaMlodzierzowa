@@ -77,9 +77,46 @@ UPDATE editions SET state_as_of = CURDATE() WHERE id=@ed;
 
 Ranking wylicza się automatycznie (najwyższy wynik z rund, top 8 do Finału).
 
-## Kolejne kroki
+## Panel administratora
 
-- Edytowalne treści przez prosty panel admina (logowanie hashed-password)
-- Import wyników z CSV / XLSX (`bin/import_results.php`)
-- Strona partnerska Finału z mapą strzelnicy i programem dnia
-- Galeria zdjęć i transmisje wideo z Finału w Gdyni
+Panel dostępny pod `/admin` (login: `/admin/login`). Konfiguracja:
+
+```bash
+# wygeneruj hash hasła:
+php -r "echo password_hash('twojeHaslo', PASSWORD_DEFAULT).PHP_EOL;"
+# wklej do config/config.php → admin.password_hash
+```
+
+Funkcje panelu:
+- **Pulpit** — KPI: zespoły, wyniki, rozegrane rundy, news
+- **Aktualności** — pełny CRUD (dodawanie, edycja, przypinanie, usuwanie)
+- **Rundy & wyniki** — wpisywanie wyników rundy, zmiana statusu (planowana / w trakcie / rozegrana)
+- **Import CSV** — szybkie wgranie wyników kolejnej rundy z arkusza
+
+CSRF + sesje HttpOnly+Lax, hash hasła `password_hash` (bcrypt).
+
+## Import wyników z CSV (CLI)
+
+```bash
+php bin/import_results.php <ROUND_CODE> <DISCIPLINE_CODE> plik.csv
+
+# np. dla Pucharu Bydgoszczy / karabin:
+php bin/import_results.php PB KPN data/runda2-karabin.csv
+```
+
+Format pliku: `NAZWA_ZESPOLU,WYNIK` (nagłówek opcjonalny, przecinek dziesiętny obsługiwany).
+Nazwy zespołów muszą się zgadzać z `teams.display_name`.
+
+## Strzelecki Puchar Gdyni
+
+Edycja 2026 jest gospodarzem Finału Ligi Młodzieżowej. Sekcja `/spg`
+prezentuje Puchar Gdyni jako osobną markę z własnym kolorem (granat
++ złoto), a strona `/final-puchar-gdyni` zawiera program zawodów
+(3 dni), drabinkę grupową G1/G2 i mapę strzelnicy (OpenStreetMap).
+
+## Kolejne kroki (roadmap)
+
+- Galeria zdjęć i transmisje wideo z Finału
+- Strona zespołu (sylwetki klubów, statystyki sezonowe)
+- Eksport wyników do XLSX dla mediów / sponsorów
+- Sponsorzy lokalni i pakiety dla partnerów Pucharu Gdyni
