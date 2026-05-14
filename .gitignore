@@ -1,0 +1,8 @@
+/config/config.php
+/var/cache/*
+!/var/cache/.gitkeep
+/vendor/
+.idea/
+.vscode/
+*.log
+.DS_Store
