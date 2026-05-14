@@ -41,6 +41,8 @@
     </aside>
 </section>
 
+<?= App\Core\View::renderRaw('partials/sponsors', ['sponsors' => $sponsors ?? [], 'title_sponsors' => 'Partnerzy Pucharu Gdyni']) ?>
+
 <section class="container section">
     <header class="section-head"><h2>Edycja 2026 — co warto wiedzieć</h2></header>
     <div class="cards">
