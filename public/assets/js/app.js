@@ -1,6 +1,30 @@
 (function () {
     'use strict';
 
+    // Welcome modal — pokazujemy się raz na 7 dni
+    const WELCOME_KEY = 'liga_welcome_v1';
+    const WELCOME_TTL = 7 * 24 * 60 * 60 * 1000; // 7 dni
+    const modal = document.getElementById('welcome-modal');
+    if (modal) {
+        let dismissed = 0;
+        try { dismissed = parseInt(localStorage.getItem(WELCOME_KEY) || '0', 10); } catch (_) {}
+        if (!dismissed || (Date.now() - dismissed) > WELCOME_TTL) {
+            modal.hidden = false;
+            document.body.style.overflow = 'hidden';
+            const closers = modal.querySelectorAll('[data-close]');
+            const close = () => {
+                modal.hidden = true;
+                document.body.style.overflow = '';
+                try { localStorage.setItem(WELCOME_KEY, Date.now().toString()); } catch (_) {}
+            };
+            closers.forEach(el => el.addEventListener('click', close));
+            document.addEventListener('keydown', e => { if (e.key === 'Escape' && !modal.hidden) close(); });
+            // focus na przycisku OK dla a11y
+            const ok = modal.querySelector('.btn-primary');
+            if (ok) setTimeout(() => ok.focus(), 50);
+        }
+    }
+
     // Mobile nav toggle
     const toggle = document.querySelector('.nav-toggle');
     const nav = document.getElementById('primary-nav');

@@ -33,6 +33,21 @@ $baseTitle = $title ?? ($edition['title'] ?? 'Liga Młodzieżowa PZSS 2026');
 <?= View::renderRaw('partials/header', ['edition' => $edition]) ?>
 <main id="main"><?= $content ?></main>
 <?= View::renderRaw('partials/footer', ['edition' => $edition, 'partners' => $partners, 'config' => $config]) ?>
+
+<div id="welcome-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="welcome-title" hidden>
+    <div class="modal-backdrop" data-close></div>
+    <div class="modal-card">
+        <button class="modal-close" type="button" data-close aria-label="Zamknij">×</button>
+        <div class="modal-emoji" aria-hidden="true">🚧</div>
+        <h2 id="welcome-title">Strona dalej w przygotowaniu</h2>
+        <p>Chcesz pomóc w jej rozwoju? Napisz na:</p>
+        <p><a class="modal-mail" href="mailto:przemek@szulecki.pl?subject=Liga%20M%C5%82odzie%C5%BCowa%20–%20pomoc">przemek@szulecki.pl</a></p>
+        <div class="modal-actions">
+            <button class="btn btn-primary" type="button" data-close>OK, rozumiem</button>
+        </div>
+    </div>
+</div>
+
 <script src="/assets/js/app.js" defer></script>
 </body>
 </html>
