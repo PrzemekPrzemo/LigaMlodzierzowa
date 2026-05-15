@@ -11,6 +11,7 @@ use App\Core\Auth;
 use App\Core\Csrf;
 use App\Core\Flash;
 use App\Core\Session;
+use App\Core\Slugger;
 use App\Repository\EditionRepository;
 use App\Repository\RoundRepository;
 use App\Repository\ContentRepository;
@@ -357,6 +358,199 @@ $router->post('/admin/wynik/{id}/delete', static function (array $p) use ($auth,
         header('Location: /admin/rundy/' . $back . '/wyniki'); exit;
     }
     header('Location: /admin/rundy'); exit;
+});
+
+/* ---- CRUD Kluby ---- */
+$router->get('/admin/kluby', static function () use ($auth, $hasDb, $adminRepo, $adminLayout) {
+    $auth->requireLogin();
+    return $adminLayout('admin/clubs_list', [
+        'title' => 'Kluby · Panel',
+        'rows' => $hasDb ? $adminRepo->listClubs() : [],
+        'flashes' => Flash::pull(),
+    ]);
+});
+
+$router->get('/admin/kluby/new', static function () use ($auth, $adminLayout) {
+    $auth->requireLogin();
+    return $adminLayout('admin/club_form', [
+        'title' => 'Nowy klub', 'club' => null, 'teams' => [],
+        'disciplines' => [], 'edition' => null, 'flashes' => Flash::pull(),
+    ]);
+});
+
+$router->get('/admin/kluby/{id}', static function (array $p) use ($auth, $hasDb, $adminRepo, $resultRepo, $edition, $adminLayout) {
+    $auth->requireLogin();
+    if (!$hasDb) { http_response_code(404); return $adminLayout('admin/club_form', ['title'=>'Brak bazy','club'=>null,'teams'=>[],'disciplines'=>[],'edition'=>null,'flashes'=>Flash::pull()]); }
+    $club = $adminRepo->findClub((int)$p['id']);
+    if (!$club) { http_response_code(404); return $adminLayout('admin/club_form', ['title'=>'Brak klubu','club'=>null,'teams'=>[],'disciplines'=>[],'edition'=>null,'flashes'=>Flash::pull()]); }
+    return $adminLayout('admin/club_form', [
+        'title'       => 'Edycja klubu: ' . $club['name'],
+        'club'        => $club,
+        'teams'       => $adminRepo->teamsForClub((int)$club['id'], (int)$edition['id']),
+        'disciplines' => $resultRepo->disciplines(),
+        'edition'     => $edition,
+        'athletes'    => $adminRepo->listAthletes((int)$club['id']),
+        'flashes'     => Flash::pull(),
+    ]);
+});
+
+$router->post('/admin/kluby', static function () use ($auth, $hasDb, $adminRepo) {
+    $auth->requireLogin(); Csrf::requireValid();
+    if (!$hasDb) { Flash::add('err','Brak bazy.'); header('Location: /admin/kluby'); exit; }
+    $id   = isset($_POST['id']) && $_POST['id'] !== '' ? (int)$_POST['id'] : null;
+    $name = trim($_POST['name'] ?? '');
+    if ($name === '') { Flash::add('err','Nazwa klubu jest wymagana.'); header('Location: /admin/kluby/' . ($id ?? 'new')); exit; }
+    $slug = trim($_POST['slug'] ?? '') ?: Slugger::make($name);
+    $data = [
+        'name'    => $name,
+        'short'   => trim($_POST['short']   ?? ''),
+        'slug'    => $slug,
+        'city'    => trim($_POST['city']    ?? ''),
+        'region'  => trim($_POST['region']  ?? ''),
+        'logo'    => trim($_POST['logo']    ?? ''),
+        'website' => trim($_POST['website'] ?? ''),
+    ];
+    try {
+        $newId = $adminRepo->saveClub($id, $data);
+        Flash::add('ok','Zapisano klub.');
+        header('Location: /admin/kluby/' . $newId); exit;
+    } catch (\Throwable $e) {
+        Flash::add('err','Błąd zapisu: '.$e->getMessage());
+        header('Location: /admin/kluby' . ($id ? '/' . $id : '/new')); exit;
+    }
+});
+
+$router->post('/admin/kluby/{id}/delete', static function (array $p) use ($auth, $hasDb, $adminRepo) {
+    $auth->requireLogin(); Csrf::requireValid();
+    if ($hasDb) { $adminRepo->deleteClub((int)$p['id']); Flash::add('ok','Klub usunięty.'); }
+    header('Location: /admin/kluby'); exit;
+});
+
+$router->post('/admin/kluby/{id}/zespol', static function (array $p) use ($auth, $hasDb, $adminRepo, $edition) {
+    $auth->requireLogin(); Csrf::requireValid();
+    if (!$hasDb) { header('Location: /admin/kluby'); exit; }
+    $clubId = (int)$p['id'];
+    $club = $adminRepo->findClub($clubId);
+    if ($club) {
+        $disciplineId = (int)($_POST['discipline_id'] ?? 0);
+        $action = $_POST['action'] ?? 'add';
+        if ($action === 'remove') {
+            $teamId = (int)($_POST['team_id'] ?? 0);
+            if ($teamId) { $adminRepo->deleteTeam($teamId); Flash::add('ok','Zespół usunięty z edycji.'); }
+        } elseif ($disciplineId) {
+            $adminRepo->createTeam((int)$edition['id'], $clubId, $disciplineId, $club['name']);
+            Flash::add('ok','Zespół dodany do edycji.');
+        }
+    }
+    header('Location: /admin/kluby/' . $clubId); exit;
+});
+
+/* ---- CRUD Zawodnicy ---- */
+$router->get('/admin/zawodnicy', static function () use ($auth, $hasDb, $adminRepo, $adminLayout) {
+    $auth->requireLogin();
+    $clubId = isset($_GET['klub']) && $_GET['klub'] !== '' ? (int)$_GET['klub'] : null;
+    $q      = trim((string)($_GET['q'] ?? ''));
+    return $adminLayout('admin/athletes_list', [
+        'title'   => 'Zawodnicy · Panel',
+        'rows'    => $hasDb ? $adminRepo->listAthletes($clubId, $q ?: null) : [],
+        'clubs'   => $hasDb ? $adminRepo->listClubs() : [],
+        'q'       => $q,
+        'clubId'  => $clubId,
+        'flashes' => Flash::pull(),
+    ]);
+});
+
+$router->get('/admin/zawodnicy/new', static function () use ($auth, $hasDb, $adminRepo, $adminLayout) {
+    $auth->requireLogin();
+    return $adminLayout('admin/athlete_form', [
+        'title' => 'Nowy zawodnik',
+        'athlete' => null,
+        'clubs' => $hasDb ? $adminRepo->listClubs() : [],
+        'preselect_club' => isset($_GET['klub']) ? (int)$_GET['klub'] : null,
+        'flashes' => Flash::pull(),
+    ]);
+});
+
+$router->get('/admin/zawodnicy/{id}', static function (array $p) use ($auth, $hasDb, $adminRepo, $resultRepo, $edition, $roundRepo, $adminLayout) {
+    $auth->requireLogin();
+    if (!$hasDb) { http_response_code(404); return $adminLayout('admin/athlete_form', ['title'=>'Brak bazy','athlete'=>null,'clubs'=>[],'flashes'=>Flash::pull()]); }
+    $athlete = $adminRepo->findAthlete((int)$p['id']);
+    if (!$athlete) { http_response_code(404); return $adminLayout('admin/athlete_form', ['title'=>'Brak zawodnika','athlete'=>null,'clubs'=>[],'flashes'=>Flash::pull()]); }
+    return $adminLayout('admin/athlete_form', [
+        'title'   => 'Edycja: ' . $athlete['last_name'] . ' ' . $athlete['first_name'],
+        'athlete' => $athlete,
+        'clubs'   => $adminRepo->listClubs(),
+        'preselect_club' => (int)$athlete['club_id'],
+        'rounds'  => $roundRepo->forEdition((int)$edition['id']),
+        'disciplines' => $resultRepo->disciplines(),
+        'scores'  => $adminRepo->athleteScores((int)$athlete['id'], (int)$edition['id']),
+        'flashes' => Flash::pull(),
+    ]);
+});
+
+$router->post('/admin/zawodnicy', static function () use ($auth, $hasDb, $adminRepo) {
+    $auth->requireLogin(); Csrf::requireValid();
+    if (!$hasDb) { Flash::add('err','Brak bazy.'); header('Location: /admin/zawodnicy'); exit; }
+    $id = isset($_POST['id']) && $_POST['id'] !== '' ? (int)$_POST['id'] : null;
+    $first = trim($_POST['first_name'] ?? '');
+    $last  = trim($_POST['last_name'] ?? '');
+    if ($first === '' || $last === '') {
+        Flash::add('err','Imię i nazwisko są wymagane.');
+        header('Location: /admin/zawodnicy/' . ($id ?? 'new')); exit;
+    }
+    $club  = (int)($_POST['club_id'] ?? 0) ?: null;
+    $slug  = trim($_POST['slug'] ?? '') ?: Slugger::make($first . '-' . $last . ($club ? '-' . $club : ''));
+    $data = [
+        'club_id'    => $club,
+        'first_name' => $first,
+        'last_name'  => $last,
+        'birth_year' => (int)($_POST['birth_year'] ?? 0) ?: null,
+        'gender'     => in_array($_POST['gender'] ?? '', ['M','K'], true) ? $_POST['gender'] : null,
+        'slug'       => $slug,
+        'license_no' => trim($_POST['license_no'] ?? '') ?: null,
+    ];
+    try {
+        $newId = $adminRepo->saveAthlete($id, $data);
+        Flash::add('ok','Zapisano zawodnika.');
+        header('Location: /admin/zawodnicy/' . $newId); exit;
+    } catch (\Throwable $e) {
+        Flash::add('err','Błąd zapisu: '.$e->getMessage());
+        header('Location: /admin/zawodnicy' . ($id ? '/' . $id : '/new')); exit;
+    }
+});
+
+$router->post('/admin/zawodnicy/{id}/delete', static function (array $p) use ($auth, $hasDb, $adminRepo) {
+    $auth->requireLogin(); Csrf::requireValid();
+    if ($hasDb) { $adminRepo->deleteAthlete((int)$p['id']); Flash::add('ok','Zawodnik usunięty.'); }
+    header('Location: /admin/zawodnicy'); exit;
+});
+
+$router->post('/admin/zawodnicy/{id}/wynik', static function (array $p) use ($auth, $hasDb, $adminRepo, $edition) {
+    $auth->requireLogin(); Csrf::requireValid();
+    if (!$hasDb) { header('Location: /admin/zawodnicy'); exit; }
+    $athleteId   = (int)$p['id'];
+    $roundId     = (int)($_POST['round_id'] ?? 0);
+    $disciplineId= (int)($_POST['discipline_id'] ?? 0);
+    $scoreRaw    = str_replace(',', '.', (string)($_POST['score'] ?? ''));
+    if (!$roundId || !$disciplineId || !is_numeric($scoreRaw)) {
+        Flash::add('err','Niepoprawne dane wyniku.');
+        header('Location: /admin/zawodnicy/' . $athleteId); exit;
+    }
+    $athlete = $adminRepo->findAthlete($athleteId);
+    $teamId  = null;
+    if ($athlete && $athlete['club_id']) {
+        $teams = $adminRepo->teamsForClub((int)$athlete['club_id'], (int)$edition['id']);
+        foreach ($teams as $t) { if ((int)$t['discipline_id'] === $disciplineId) { $teamId = (int)$t['id']; break; } }
+    }
+    $adminRepo->upsertAthleteScore($athleteId, $roundId, $disciplineId, $teamId, (float)$scoreRaw);
+    Flash::add('ok','Wynik zapisany.');
+    header('Location: /admin/zawodnicy/' . $athleteId); exit;
+});
+
+$router->post('/admin/zawodnicy/{id}/wynik/{sid}/delete', static function (array $p) use ($auth, $hasDb, $adminRepo) {
+    $auth->requireLogin(); Csrf::requireValid();
+    if ($hasDb) { $adminRepo->deleteAthleteScore((int)$p['sid']); Flash::add('ok','Wynik usunięty.'); }
+    header('Location: /admin/zawodnicy/' . (int)$p['id']); exit;
 });
 
 /* Import CSV */
