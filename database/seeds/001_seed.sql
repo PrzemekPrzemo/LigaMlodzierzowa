@@ -32,8 +32,8 @@ SET @d_ppn := (SELECT id FROM disciplines WHERE code = 'PPN');
 INSERT IGNORE INTO rounds (edition_id, number, code, label, short_label, city, host_club, venue, is_final, status, sort) VALUES
  (@ed, 1, 'ZLOT',    'Zlot Orlików',                     'ZLOT Orlików Siedlce',   'Siedlce',   NULL, 'Siedlce',   0, 'finished', 10),
  (@ed, 2, 'PB',      'Puchar Bydgoszczy',                'Puchar Bydgoszczy',      'Bydgoszcz', NULL, 'Bydgoszcz', 0, 'planned',  20),
- (@ed, 3, 'PP_PZSS', 'Puchar Prezesa PZSS',              'PP PZSS Wrocław',        'Wrocław',   NULL, 'Wrocław',   0, 'planned',  30),
- (@ed, 4, 'ZM_ZK',   'Złoty Muszkiet / Złota Krócica',   'ZM ZK Bydgoszcz',        'Bydgoszcz', NULL, 'Bydgoszcz', 0, 'planned',  40),
+ (@ed, 3, 'PP_PZSS', 'Puchar Prezesa PZSS',              'PP PZSS Bydgoszcz',      'Bydgoszcz', NULL, 'Bydgoszcz', 0, 'planned',  30),
+ (@ed, 4, 'ZM_ZK',   'Złoty Muszkiet / Złota Krócica',   'ZM ZK Wrocław',          'Wrocław',   NULL, 'Wrocław',   0, 'planned',  40),
  (@ed,99, 'FINAL',   'Finał Ligi Młodzieżowej PZSS 2026 / Strzelecki Puchar Gdyni', 'Finał — Gdynia',
                                                                                    'Gdynia',    'Strzelecki Puchar Gdyni', 'Strzelnica Gdynia', 1, 'planned', 99);
 
