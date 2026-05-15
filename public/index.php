@@ -506,6 +506,7 @@ $router->post('/admin/zawodnicy', static function () use ($auth, $hasDb, $adminR
         'last_name'  => $last,
         'birth_year' => (int)($_POST['birth_year'] ?? 0) ?: null,
         'gender'     => in_array($_POST['gender'] ?? '', ['M','K'], true) ? $_POST['gender'] : null,
+        'primary_discipline' => in_array($_POST['primary_discipline'] ?? '', ['KPN','PPN','BOTH'], true) ? $_POST['primary_discipline'] : null,
         'slug'       => $slug,
         'license_no' => trim($_POST['license_no'] ?? '') ?: null,
     ];

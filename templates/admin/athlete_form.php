@@ -44,6 +44,14 @@ $fmt = fn($v) => $v === null ? '' : (fmod((float)$v,1.0)===0.0
             <option value="K" <?= ($a['gender'] ?? '') === 'K' ? 'selected' : '' ?>>K</option>
         </select>
     </label>
+    <fieldset class="col-4 discipline-radio">
+        <legend>Dyscyplina (główna)</legend>
+        <?php $pd = $a['primary_discipline'] ?? ''; ?>
+        <label><input type="radio" name="primary_discipline" value="KPN"  <?= $pd === 'KPN'  ? 'checked' : '' ?>> Karabin <small>KPn</small></label>
+        <label><input type="radio" name="primary_discipline" value="PPN"  <?= $pd === 'PPN'  ? 'checked' : '' ?>> Pistolet <small>PPn</small></label>
+        <label><input type="radio" name="primary_discipline" value="BOTH" <?= $pd === 'BOTH' ? 'checked' : '' ?>> Obie</label>
+        <label><input type="radio" name="primary_discipline" value=""     <?= $pd === ''     ? 'checked' : '' ?>> —</label>
+    </fieldset>
     <label class="col-3">
         <span>Nr licencji</span>
         <input name="license_no" value="<?= $e($a['license_no'] ?? '') ?>">

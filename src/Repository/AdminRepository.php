@@ -230,25 +230,29 @@ final class AdminRepository
 
     public function saveAthlete(?int $id, array $data): int
     {
+        $discipline = in_array($data['primary_discipline'] ?? '', ['KPN','PPN','BOTH'], true)
+            ? $data['primary_discipline'] : null;
         if ($id) {
             $s = $this->pdo->prepare(
-                'UPDATE athletes SET club_id=:c, first_name=:fn, last_name=:ln, birth_year=:by, gender=:g, slug=:sl, license_no=:l WHERE id=:i'
+                'UPDATE athletes SET club_id=:c, first_name=:fn, last_name=:ln, birth_year=:by,
+                                     gender=:g, primary_discipline=:pd, slug=:sl, license_no=:l WHERE id=:i'
             );
             $s->execute([
                 ':c'=>$data['club_id'] ?: null, ':fn'=>$data['first_name'], ':ln'=>$data['last_name'],
                 ':by'=>$data['birth_year'] ?: null, ':g'=>$data['gender'] ?: null,
-                ':sl'=>$data['slug'] ?: null, ':l'=>$data['license_no'] ?: null, ':i'=>$id,
+                ':pd'=>$discipline, ':sl'=>$data['slug'] ?: null,
+                ':l'=>$data['license_no'] ?: null, ':i'=>$id,
             ]);
             return $id;
         }
         $s = $this->pdo->prepare(
-            'INSERT INTO athletes (club_id, first_name, last_name, birth_year, gender, slug, license_no)
-             VALUES (:c,:fn,:ln,:by,:g,:sl,:l)'
+            'INSERT INTO athletes (club_id, first_name, last_name, birth_year, gender, primary_discipline, slug, license_no)
+             VALUES (:c,:fn,:ln,:by,:g,:pd,:sl,:l)'
         );
         $s->execute([
             ':c'=>$data['club_id'] ?: null, ':fn'=>$data['first_name'], ':ln'=>$data['last_name'],
             ':by'=>$data['birth_year'] ?: null, ':g'=>$data['gender'] ?: null,
-            ':sl'=>$data['slug'] ?: null, ':l'=>$data['license_no'] ?: null,
+            ':pd'=>$discipline, ':sl'=>$data['slug'] ?: null, ':l'=>$data['license_no'] ?: null,
         ]);
         return (int)$this->pdo->lastInsertId();
     }
