@@ -24,6 +24,12 @@ $baseTitle = $title ?? ($edition['title'] ?? 'Liga Młodzieżowa PZSS 2026');
     <link rel="icon" type="image/svg+xml" href="/assets/img/favicon.svg">
 </head>
 <body>
+<div class="unofficial-bar" role="note">
+    <div class="container unofficial-bar-inner">
+        <span class="unofficial-badge">Strona NIEOFICJALNA</span>
+        <span class="unofficial-text">Serwis fanowski — dane prezentowane są na podstawie publikacji <a href="<?= $e($config['external']['pzss_home']) ?>" target="_blank" rel="noopener">PZSS</a>. Oficjalna strona Ligi: <a href="<?= $e($edition['pzss_url']) ?>" target="_blank" rel="noopener">pzss.org.pl</a>.</span>
+    </div>
+</div>
 <?= View::renderRaw('partials/header', ['edition' => $edition]) ?>
 <main id="main"><?= $content ?></main>
 <?= View::renderRaw('partials/footer', ['edition' => $edition, 'partners' => $partners, 'config' => $config]) ?>

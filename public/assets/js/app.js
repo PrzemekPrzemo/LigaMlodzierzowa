@@ -11,6 +11,20 @@
         });
     }
 
+    // View switch (rounds-table vs ranking) on /wyniki
+    const vsBtns = document.querySelectorAll('.vs-btn');
+    if (vsBtns.length) {
+        vsBtns.forEach(b => {
+            b.addEventListener('click', () => {
+                vsBtns.forEach(x => x.classList.toggle('is-active', x === b));
+                const target = b.dataset.view;
+                document.querySelectorAll('.view').forEach(v => {
+                    v.classList.toggle('is-active', v.classList.contains('view-' + target));
+                });
+            });
+        });
+    }
+
     // Tabs (wyniki)
     const tabs = document.querySelectorAll('.tab');
     if (tabs.length) {

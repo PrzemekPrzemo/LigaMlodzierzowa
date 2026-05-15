@@ -125,6 +125,33 @@ $program = $program ?? [];
 </section>
 <?php endif; ?>
 
+<?php if (!empty($lives)): ?>
+<section class="container section">
+    <header class="section-head">
+        <h2>Transmisja na żywo</h2>
+        <a class="link-more" href="/live">Wszystkie transmisje →</a>
+    </header>
+    <div class="live-grid">
+        <?php foreach ($lives as $lv): ?>
+            <article class="live-card live-<?= App\Core\View::e($lv['status']) ?>">
+                <div class="live-embed">
+                    <iframe src="<?= App\Core\View::e($lv['embed_url']) ?>" title="<?= App\Core\View::e($lv['title']) ?>" allowfullscreen loading="lazy"></iframe>
+                </div>
+                <div class="live-meta">
+                    <span class="tag tag-<?= App\Core\View::e($lv['status']) ?>"><?= App\Core\View::e($lv['status']) ?></span>
+                    <strong><?= App\Core\View::e($lv['title']) ?></strong>
+                    <?php if (!empty($lv['starts_at'])): ?>
+                        <span class="muted small"><?= App\Core\View::e(date('d.m.Y H:i', strtotime($lv['starts_at']))) ?></span>
+                    <?php endif; ?>
+                </div>
+            </article>
+        <?php endforeach; ?>
+    </div>
+</section>
+<?php endif; ?>
+
+<?= App\Core\View::renderRaw('partials/sponsors', ['sponsors' => $sponsors ?? [], 'title_sponsors' => 'Partnerzy Finału']) ?>
+
 <?php if ($venue && !empty($venue['lat']) && !empty($venue['lng'])): ?>
 <section class="container section">
     <h2>Mapa</h2>

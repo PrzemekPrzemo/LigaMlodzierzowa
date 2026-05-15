@@ -17,6 +17,9 @@ use App\Repository\ContentRepository;
 use App\Repository\ResultRepository;
 use App\Repository\AdminRepository;
 use App\Repository\ProgramRepository;
+use App\Repository\ClubRepository;
+use App\Repository\AthleteRepository;
+use App\Repository\MediaRepository;
 
 $config = Bootstrap::init();
 
@@ -34,6 +37,9 @@ $contentRepo = $hasDb ? new ContentRepository($pdo) : null;
 $resultRepo  = $hasDb ? new ResultRepository($pdo) : null;
 $adminRepo   = $hasDb ? new AdminRepository($pdo) : null;
 $programRepo = $hasDb ? new ProgramRepository($pdo) : null;
+$clubRepo    = $hasDb ? new ClubRepository($pdo) : null;
+$athleteRepo = $hasDb ? new AthleteRepository($pdo) : null;
+$mediaRepo   = $hasDb ? new MediaRepository($pdo) : null;
 
 $auth = new Auth(
     $config['admin']['password_hash'] ?? '',
@@ -79,16 +85,67 @@ $router->get('/', static function () use ($edition, $hasDb, $roundRepo, $content
 $router->get('/wyniki', static function () use ($edition, $hasDb, $resultRepo) {
     $disciplines = $hasDb ? $resultRepo->disciplines() : [];
     $standings = [];
+    $tables    = [];
     if ($hasDb) {
         foreach ($disciplines as $d) {
             $standings[$d['code']] = [
-                'name'  => $d['name'], 'short' => $d['short'], 'icon' => $d['icon'] ?? null,
-                'rows'  => $resultRepo->standings((int)$edition['id'], (int)$d['id']),
+                'name' => $d['name'], 'short' => $d['short'],
+                'rows' => $resultRepo->standings((int)$edition['id'], (int)$d['id']),
+            ];
+            $tables[$d['code']] = [
+                'name' => $d['name'],
+                'data' => $resultRepo->roundsTable((int)$edition['id'], (int)$d['id']),
             ];
         }
     }
     return View::render('pages/wyniki', [
-        'title' => 'Wyniki — ' . $edition['title'], 'disciplines' => $disciplines, 'standings' => $standings,
+        'title' => 'Wyniki — ' . $edition['title'], 'disciplines' => $disciplines,
+        'standings' => $standings, 'tables' => $tables,
+    ]);
+});
+
+/* Kluby */
+$router->get('/kluby', static function () use ($edition, $hasDb, $clubRepo) {
+    return View::render('pages/clubs', [
+        'title' => 'Kluby — ' . $edition['title'],
+        'clubs' => $hasDb ? $clubRepo->clubsForEdition((int)$edition['id']) : [],
+    ]);
+});
+
+$router->get('/klub/{slug}', static function (array $p) use ($edition, $hasDb, $clubRepo, $athleteRepo) {
+    if (!$hasDb) { http_response_code(404); return View::render('pages/404', ['title' => 'Brak bazy']); }
+    $club = $clubRepo->bySlug((string)$p['slug']);
+    if (!$club) { http_response_code(404); return View::render('pages/404', ['title' => 'Klub nie znaleziony']); }
+    $athletes = $athleteRepo->forClub((int)$club['id']);
+    $scores   = $athleteRepo->scoresForClubInEdition((int)$club['id'], (int)$edition['id']);
+    return View::render('pages/club_single', [
+        'title' => $club['name'],
+        'club'  => $club, 'athletes' => $athletes, 'scores' => $scores,
+    ]);
+});
+
+/* Archiwum */
+$router->get('/archiwum', static function () use ($hasDb, $editionRepo) {
+    return View::render('pages/archive', [
+        'title'    => 'Archiwum sezonów',
+        'editions' => $hasDb ? $editionRepo->archive() : [],
+    ]);
+});
+
+$router->get('/archiwum/{year}', static function (array $p) use ($hasDb, $editionRepo, $resultRepo) {
+    if (!$hasDb) { http_response_code(404); return View::render('pages/404', ['title' => '404']); }
+    $ed = $editionRepo->byYear((int)$p['year']);
+    if (!$ed) { http_response_code(404); return View::render('pages/404', ['title' => 'Edycja nie znaleziona']); }
+    $disciplines = $resultRepo->disciplines();
+    $tables = [];
+    foreach ($disciplines as $d) {
+        $tables[$d['code']] = [
+            'name' => $d['name'],
+            'data' => $resultRepo->roundsTable((int)$ed['id'], (int)$d['id']),
+        ];
+    }
+    return View::render('pages/archive_edition', [
+        'title' => $ed['title'], 'archive_edition' => $ed, 'tables' => $tables,
     ]);
 });
 
@@ -106,21 +163,42 @@ $router->get('/regulamin', static function () use ($edition, $hasDb, $contentRep
     ]);
 });
 
-$router->get('/final-puchar-gdyni', static function () use ($edition, $hasDb, $roundRepo, $programRepo) {
+$router->get('/final-puchar-gdyni', static function () use ($edition, $hasDb, $roundRepo, $programRepo, $mediaRepo) {
     $rounds = $hasDb ? $roundRepo->forEdition((int)$edition['id']) : [];
     $final  = null;
     foreach ($rounds as $r) { if ((int)$r['is_final'] === 1) { $final = $r; break; } }
-    $program = ($hasDb && $final) ? $programRepo->eventsForRound((int)$final['id']) : [];
-    $venue   = $hasDb ? $programRepo->venueBySlug('strzelnica-gdynia') : null;
+    $program  = ($hasDb && $final) ? $programRepo->eventsForRound((int)$final['id']) : [];
+    $venue    = $hasDb ? $programRepo->venueBySlug('strzelnica-gdynia') : null;
+    $sponsors = $hasDb ? $mediaRepo->sponsors((int)$edition['id'], 'final') : [];
+    $lives    = $hasDb ? $mediaRepo->liveStreams((int)$edition['id']) : [];
     return View::render('pages/final', [
         'title' => 'Finał Ligi Młodzieżowej & Strzelecki Puchar Gdyni',
         'final' => $final, 'program' => $program, 'venue' => $venue,
+        'sponsors' => $sponsors, 'lives' => $lives,
     ]);
 });
 
-$router->get('/spg', static function () use ($hasDb, $programRepo) {
-    $venue = $hasDb ? $programRepo->venueBySlug('strzelnica-gdynia') : null;
-    return View::render('pages/spg', ['title' => 'Strzelecki Puchar Gdyni', 'venue' => $venue]);
+$router->get('/spg', static function () use ($edition, $hasDb, $programRepo, $mediaRepo) {
+    $venue    = $hasDb ? $programRepo->venueBySlug('strzelnica-gdynia') : null;
+    $sponsors = $hasDb ? $mediaRepo->sponsors((int)$edition['id'], 'spg') : [];
+    return View::render('pages/spg', [
+        'title' => 'Strzelecki Puchar Gdyni',
+        'venue' => $venue, 'sponsors' => $sponsors,
+    ]);
+});
+
+$router->get('/galeria', static function () use ($edition, $hasDb, $mediaRepo) {
+    return View::render('pages/gallery', [
+        'title' => 'Galeria — ' . $edition['title'],
+        'gallery' => $hasDb ? $mediaRepo->gallery((int)$edition['id']) : [],
+    ]);
+});
+
+$router->get('/live', static function () use ($edition, $hasDb, $mediaRepo) {
+    return View::render('pages/live', [
+        'title' => 'Transmisje na żywo — ' . $edition['title'],
+        'lives' => $hasDb ? $mediaRepo->liveStreams((int)$edition['id']) : [],
+    ]);
 });
 
 $router->get('/aktualnosci', static function () use ($edition, $hasDb, $contentRepo) {
@@ -327,6 +405,101 @@ $router->post('/admin/import', static function () use ($auth, $hasDb, $adminRepo
     fclose($h);
     Flash::add('ok', "Zaimportowano: $ok. Pominięto: " . count($skipped) . (count($skipped) ? ' (' . implode(', ', array_slice($skipped, 0, 5)) . (count($skipped)>5?'…':'') . ')' : '.'));
     header('Location: /admin/import'); exit;
+});
+
+/* SEO */
+$router->get('/robots.txt', static function () use ($config) {
+    header('Content-Type: text/plain; charset=utf-8');
+    return "User-agent: *\nAllow: /\nDisallow: /admin\nSitemap: " . ($config['app']['base_url'] ?? '') . "/sitemap.xml\n";
+});
+
+$router->get('/sitemap.xml', static function () use ($config, $hasDb, $contentRepo, $clubRepo, $edition, $editionRepo) {
+    header('Content-Type: application/xml; charset=utf-8');
+    $base = rtrim((string)($config['app']['base_url'] ?? 'https://example.pl'), '/');
+    $now  = date('Y-m-d');
+    $urls = ['/', '/wyniki', '/terminarz', '/regulamin', '/final-puchar-gdyni',
+             '/spg', '/kluby', '/aktualnosci', '/kontakt', '/archiwum'];
+    if ($hasDb) {
+        foreach ($contentRepo->latestNews((int)$edition['id'], 100) as $n) {
+            $urls[] = '/aktualnosci/' . $n['slug'];
+        }
+        foreach ($clubRepo->all() as $c) {
+            if (!empty($c['slug'])) { $urls[] = '/klub/' . $c['slug']; }
+        }
+        foreach ($editionRepo->archive() as $ed) {
+            $urls[] = '/archiwum/' . (int)$ed['year'];
+        }
+    }
+    $xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
+    $xml .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
+    foreach (array_unique($urls) as $u) {
+        $xml .= "  <url><loc>" . htmlspecialchars($base . $u, ENT_XML1) . "</loc><lastmod>$now</lastmod></url>\n";
+    }
+    $xml .= '</urlset>';
+    return $xml;
+});
+
+$router->get('/og.svg', static function () use ($edition) {
+    header('Content-Type: image/svg+xml; charset=utf-8');
+    $title = htmlspecialchars((string)($_GET['t'] ?? $edition['title']), ENT_QUOTES);
+    $sub   = htmlspecialchars((string)($_GET['s'] ?? 'Liga Młodzieżowa PZSS 2026'), ENT_QUOTES);
+    return <<<SVG
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <linearGradient id="g" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#0a1426"/>
+      <stop offset=".6" stop-color="#14223f"/>
+      <stop offset="1" stop-color="#1a2c52"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#g)"/>
+  <circle cx="980" cy="120" r="180" fill="#b00020" opacity=".25"/>
+  <circle cx="200" cy="540" r="220" fill="#d4af37" opacity=".18"/>
+  <text x="80" y="220" fill="#d4af37" font-family="Inter, sans-serif" font-size="28" font-weight="700" letter-spacing="3">PZSS · STRZELECTWO MŁODZIEŻOWE</text>
+  <text x="80" y="340" fill="#fff"     font-family="Barlow, sans-serif" font-size="96" font-weight="900">$title</text>
+  <text x="80" y="420" fill="#cbd5e1"  font-family="Inter, sans-serif" font-size="32" font-weight="500">$sub</text>
+  <rect x="80" y="500" width="120" height="6" fill="#b00020"/>
+</svg>
+SVG;
+});
+
+/* JSON API */
+$json = function ($data, int $code = 200) {
+    http_response_code($code);
+    header('Content-Type: application/json; charset=utf-8');
+    header('Access-Control-Allow-Origin: *');
+    return json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
+};
+
+$router->get('/api/standings.json', static function () use ($json, $edition, $hasDb, $resultRepo) {
+    if (!$hasDb) return $json(['error' => 'database unavailable'], 503);
+    $out = ['edition' => ['year' => (int)$edition['year'], 'title' => $edition['title']], 'standings' => []];
+    foreach ($resultRepo->disciplines() as $d) {
+        $out['standings'][$d['code']] = [
+            'discipline' => $d['name'],
+            'rows'       => $resultRepo->standings((int)$edition['id'], (int)$d['id']),
+        ];
+    }
+    return $json($out);
+});
+
+$router->get('/api/rounds-table.json', static function () use ($json, $edition, $hasDb, $resultRepo) {
+    if (!$hasDb) return $json(['error' => 'database unavailable'], 503);
+    $out = ['edition' => ['year' => (int)$edition['year']], 'disciplines' => []];
+    foreach ($resultRepo->disciplines() as $d) {
+        $out['disciplines'][$d['code']] = $resultRepo->roundsTable((int)$edition['id'], (int)$d['id']);
+    }
+    return $json($out);
+});
+
+$router->get('/api/clubs.json', static function () use ($json, $edition, $hasDb, $clubRepo) {
+    if (!$hasDb) return $json(['error' => 'database unavailable'], 503);
+    return $json(['clubs' => $clubRepo->clubsForEdition((int)$edition['id'])]);
+});
+
+$router->get('/api/rounds.json', static function () use ($json, $edition, $hasDb, $roundRepo) {
+    if (!$hasDb) return $json(['error' => 'database unavailable'], 503);
+    return $json(['rounds' => $roundRepo->forEdition((int)$edition['id'])]);
 });
 
 echo $router->dispatch($_SERVER['REQUEST_METHOD'] ?? 'GET', $_SERVER['REQUEST_URI'] ?? '/');

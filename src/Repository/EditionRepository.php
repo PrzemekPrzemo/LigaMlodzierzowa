@@ -22,4 +22,13 @@ final class EditionRepository
         $stmt->execute([':y' => $year]);
         return $stmt->fetch() ?: null;
     }
+
+    /** Wszystkie edycje (do strony /archiwum) — bez aktywnej. */
+    public function archive(): array
+    {
+        return $this->pdo->query(
+            "SELECT * FROM editions WHERE is_active = 0 OR edition_kind = 'archive'
+             ORDER BY year DESC"
+        )->fetchAll();
+    }
 }
