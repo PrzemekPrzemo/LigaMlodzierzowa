@@ -32,6 +32,7 @@ $baseTitle = $title ?? ($edition['title'] ?? 'Liga Młodzieżowa PZSS 2026');
 </div>
 <?= View::renderRaw('partials/header', ['edition' => $edition]) ?>
 <main id="main"><?= $content ?></main>
+<?= View::renderRaw('partials/sponsors_marquee', ['marqueeSponsors' => $marqueeSponsors ?? []]) ?>
 <?= View::renderRaw('partials/footer', ['edition' => $edition, 'partners' => $partners, 'config' => $config]) ?>
 
 <div id="welcome-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="welcome-title" hidden>
