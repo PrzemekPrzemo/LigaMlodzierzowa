@@ -1,16 +1,52 @@
 -- 003 — Zawodnicy, sloty zespołowe, archiwum edycji
+-- Migracja idempotentna: można puszczać wielokrotnie bez błędów.
 
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
-ALTER TABLE clubs
-    ADD COLUMN slug VARCHAR(80) NULL AFTER short,
-    ADD COLUMN logo VARCHAR(255) NULL AFTER region,
-    ADD COLUMN website VARCHAR(255) NULL AFTER logo,
-    ADD UNIQUE KEY uq_club_slug (slug);
+-- Helpery: warunkowe ALTERy przez information_schema + PREPARE/EXECUTE
 
-ALTER TABLE editions
-    ADD COLUMN edition_kind ENUM('current','archive') NOT NULL DEFAULT 'current' AFTER state_as_of;
+-- clubs.slug
+SET @c := (SELECT COUNT(*) FROM information_schema.COLUMNS
+           WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'clubs' AND COLUMN_NAME = 'slug');
+SET @sql := IF(@c = 0,
+    'ALTER TABLE clubs ADD COLUMN slug VARCHAR(80) NULL AFTER short',
+    'DO 0');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+-- clubs.logo
+SET @c := (SELECT COUNT(*) FROM information_schema.COLUMNS
+           WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'clubs' AND COLUMN_NAME = 'logo');
+SET @sql := IF(@c = 0,
+    'ALTER TABLE clubs ADD COLUMN logo VARCHAR(255) NULL AFTER region',
+    'DO 0');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+-- clubs.website
+SET @c := (SELECT COUNT(*) FROM information_schema.COLUMNS
+           WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'clubs' AND COLUMN_NAME = 'website');
+SET @sql := IF(@c = 0,
+    'ALTER TABLE clubs ADD COLUMN website VARCHAR(255) NULL AFTER logo',
+    'DO 0');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+-- clubs UNIQUE KEY uq_club_slug
+SET @c := (SELECT COUNT(*) FROM information_schema.STATISTICS
+           WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'clubs' AND INDEX_NAME = 'uq_club_slug');
+SET @sql := IF(@c = 0,
+    'ALTER TABLE clubs ADD UNIQUE KEY uq_club_slug (slug)',
+    'DO 0');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+-- editions.edition_kind
+SET @c := (SELECT COUNT(*) FROM information_schema.COLUMNS
+           WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'editions' AND COLUMN_NAME = 'edition_kind');
+SET @sql := IF(@c = 0,
+    "ALTER TABLE editions ADD COLUMN edition_kind ENUM('current','archive') NOT NULL DEFAULT 'current' AFTER state_as_of",
+    'DO 0');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+-- Tabele zawodników (CREATE TABLE IF NOT EXISTS — naturalnie idempotentne)
 
 CREATE TABLE IF NOT EXISTS athletes (
     id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -26,7 +62,6 @@ CREATE TABLE IF NOT EXISTS athletes (
     CONSTRAINT fk_athlete_club FOREIGN KEY (club_id) REFERENCES clubs(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Indywidualne wyniki: zawodnik × runda × dyscyplina
 CREATE TABLE IF NOT EXISTS athlete_scores (
     id             BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     athlete_id     INT UNSIGNED NOT NULL,
