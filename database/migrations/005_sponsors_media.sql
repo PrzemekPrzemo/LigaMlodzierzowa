@@ -1,4 +1,4 @@
--- 005 — Sponsorzy, galeria, transmisje live
+-- 005 — Sponsorzy, galeria, transmisje live (idempotentne)
 
 SET NAMES utf8mb4;
 
@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS sponsors (
     description VARCHAR(500) NULL,
     sort        INT NOT NULL DEFAULT 0,
     is_visible  TINYINT(1) NOT NULL DEFAULT 1,
+    UNIQUE KEY uq_sponsor (edition_id, name, scope),
     CONSTRAINT fk_sponsor_edition FOREIGN KEY (edition_id) REFERENCES editions(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -26,6 +27,7 @@ CREATE TABLE IF NOT EXISTS gallery_items (
     caption     VARCHAR(500) NULL,
     sort        INT NOT NULL DEFAULT 0,
     published_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_gallery_image (edition_id, image_url(191)),
     CONSTRAINT fk_gallery_edition FOREIGN KEY (edition_id) REFERENCES editions(id) ON DELETE SET NULL,
     CONSTRAINT fk_gallery_round   FOREIGN KEY (round_id)   REFERENCES rounds(id)   ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -40,6 +42,7 @@ CREATE TABLE IF NOT EXISTS live_streams (
     starts_at   DATETIME NULL,
     status      ENUM('upcoming','live','ended') NOT NULL DEFAULT 'upcoming',
     sort        INT NOT NULL DEFAULT 0,
+    UNIQUE KEY uq_live (embed_url(191)),
     CONSTRAINT fk_live_edition FOREIGN KEY (edition_id) REFERENCES editions(id) ON DELETE SET NULL,
     CONSTRAINT fk_live_round   FOREIGN KEY (round_id)   REFERENCES rounds(id)   ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

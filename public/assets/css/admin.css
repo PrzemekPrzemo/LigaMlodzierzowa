@@ -70,7 +70,12 @@
 .flash-err{background:#fae6e9;color:#7a0017;border:1px solid #f3b8c2}
 
 .form-table input[type=text]{padding:.4rem .55rem;border-radius:6px;max-width:120px;text-align:right;font-variant-numeric:tabular-nums}
-.actions{white-space:nowrap}
+.actions{white-space:nowrap;display:flex;gap:.3rem;align-items:center;flex-wrap:wrap}
+.adm-sep{border:0;border-top:1px solid var(--adm-line);margin:2rem 0}
+.team-toggle{display:grid;gap:.5rem;max-width:760px}
+.tt-row{display:grid;grid-template-columns:1fr auto auto;gap:.8rem;align-items:center;background:#fff;border:1px solid var(--adm-line);border-radius:10px;padding:.7rem 1rem}
+.filter-bar{align-items:end}
+.filter-bar .actions-bar{justify-content:flex-end}
 
 /* Public additions */
 .program{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem}

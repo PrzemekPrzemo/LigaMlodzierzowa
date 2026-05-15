@@ -12,6 +12,9 @@ ON DUPLICATE KEY UPDATE name=VALUES(name), description=VALUES(description);
 SET @ed := (SELECT id FROM editions WHERE year = 2026);
 SET @rf := (SELECT id FROM rounds WHERE edition_id = @ed AND code = 'FINAL');
 
+-- Idempotentne: usuwamy wpisy programu dla tego finału przed ponownym wstawieniem
+DELETE FROM round_events WHERE round_id = @rf;
+
 INSERT INTO round_events (round_id, day_no, day_label, time_start, time_end, title, kind, location, sort) VALUES
  (@rf, 1, 'Dzień 1 — kwalifikacje',  '09:00','09:30','Rejestracja zespołów',                'rejestracja',  'Biuro zawodów',     10),
  (@rf, 1, 'Dzień 1 — kwalifikacje',  '10:00','10:30','Strzały próbne (10 min) + przygotowanie','treningi',     'Strzelnica',         20),

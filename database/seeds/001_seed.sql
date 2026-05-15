@@ -32,8 +32,8 @@ SET @d_ppn := (SELECT id FROM disciplines WHERE code = 'PPN');
 INSERT IGNORE INTO rounds (edition_id, number, code, label, short_label, city, host_club, venue, is_final, status, sort) VALUES
  (@ed, 1, 'ZLOT',    'Zlot Orlików',                     'ZLOT Orlików Siedlce',   'Siedlce',   NULL, 'Siedlce',   0, 'finished', 10),
  (@ed, 2, 'PB',      'Puchar Bydgoszczy',                'Puchar Bydgoszczy',      'Bydgoszcz', NULL, 'Bydgoszcz', 0, 'planned',  20),
- (@ed, 3, 'PP_PZSS', 'Puchar Prezesa PZSS',              'PP PZSS Wrocław',        'Wrocław',   NULL, 'Wrocław',   0, 'planned',  30),
- (@ed, 4, 'ZM_ZK',   'Złoty Muszkiet / Złota Krócica',   'ZM ZK Bydgoszcz',        'Bydgoszcz', NULL, 'Bydgoszcz', 0, 'planned',  40),
+ (@ed, 3, 'PP_PZSS', 'Puchar Prezesa PZSS',              'PP PZSS Bydgoszcz',      'Bydgoszcz', NULL, 'Bydgoszcz', 0, 'planned',  30),
+ (@ed, 4, 'ZM_ZK',   'Złoty Muszkiet / Złota Krócica',   'ZM ZK Wrocław',          'Wrocław',   NULL, 'Wrocław',   0, 'planned',  40),
  (@ed,99, 'FINAL',   'Finał Ligi Młodzieżowej PZSS 2026 / Strzelecki Puchar Gdyni', 'Finał — Gdynia',
                                                                                    'Gdynia',    'Strzelecki Puchar Gdyni', 'Strzelnica Gdynia', 1, 'planned', 99);
 
@@ -116,12 +116,18 @@ SELECT t.id, @r1, s.score FROM (
 JOIN teams t  ON t.display_name = s.team AND t.edition_id = @ed AND t.discipline_id = @d_kpn
 ON DUPLICATE KEY UPDATE score = VALUES(score);
 
+-- Idempotentne: usuwamy stare wpisy zarządzane przez seed, potem wstawiamy świeże
+DELETE FROM documents WHERE edition_id = @ed AND url IN (
+    'https://www.pzss.org.pl/assets/files/liga-mlodziezowa-pzss-2026.pdf',
+    'https://www.pzss.org.pl/assets/files/zawody-i-organizacja/regulamin-final-ligi-mlodziezowej-2026.pdf',
+    'https://www.pzss.org.pl/szkolenie/liga-mlodziezowa/liga-mlodziezowa-2026'
+);
 INSERT INTO documents (edition_id, title, kind, url, source, published_at, sort) VALUES
  (@ed, 'Aktualne wyniki Ligi Młodzieżowej 2026 (PDF)',  'wyniki',    'https://www.pzss.org.pl/assets/files/liga-mlodziezowa-pzss-2026.pdf', 'PZSS', '2026-04-09', 10),
  (@ed, 'Regulamin Finału Ligi Młodzieżowej 2026 (PDF)', 'regulamin', 'https://www.pzss.org.pl/assets/files/zawody-i-organizacja/regulamin-final-ligi-mlodziezowej-2026.pdf', 'PZSS', '2026-01-10', 20),
  (@ed, 'Strona Ligi Młodzieżowej w serwisie PZSS',      'inny',      'https://www.pzss.org.pl/szkolenie/liga-mlodziezowa/liga-mlodziezowa-2026', 'PZSS', '2026-01-01', 30);
 
-INSERT INTO news (edition_id, title, slug, lead, body, is_pinned, published_at) VALUES
+INSERT IGNORE INTO news (edition_id, title, slug, lead, body, is_pinned, published_at) VALUES
  (@ed,
   'Po I rundzie Ligi Młodzieżowej PZSS 2026 — DELFIN i ZAWISZA na czele',
   'po-rundzie-zlot-orlikow-2026',
@@ -135,6 +141,12 @@ INSERT INTO news (edition_id, title, slug, lead, body, is_pinned, published_at) 
   '<p>Finał Ligi Młodzieżowej PZSS 2026 odbędzie się w formule trzydniowej: dwa dni meczów kwalifikacyjnych w grupach (G1: 1, 4, 5, 8 oraz G2: 2, 3, 6, 7) oraz dzień meczów medalowych. Każda potyczka to bezpośrednie pojedynki zawodników z tym samym numerem rankingowym w zespole.</p><p>W tym sezonie finał zostanie połączony ze <strong>Strzeleckim Pucharem Gdyni</strong>, co podniesie rangę i atrakcyjność wydarzenia.</p>',
   0, '2026-02-02 12:00:00');
 
+DELETE FROM partners WHERE name IN (
+    'Polski Związek Strzelectwa Sportowego',
+    'Liga Młodzieżowa PZSS',
+    'Strzelecki Puchar Gdyni',
+    'Ministerstwo Sportu i Turystyki'
+);
 INSERT INTO partners (name, role, logo, url, sort) VALUES
  ('Polski Związek Strzelectwa Sportowego', 'organizator', '/assets/img/logo-pzss.svg',          'https://www.pzss.org.pl', 10),
  ('Liga Młodzieżowa PZSS',                 'cykl',        '/assets/img/logo-liga.svg',          'https://www.pzss.org.pl/szkolenie/liga-mlodziezowa/liga-mlodziezowa-2026', 20),

@@ -23,6 +23,17 @@ final class Bootstrap
         } else {
             ini_set('display_errors', '0');
         }
+        // Loguj zawsze do PHP error_log — produkcyjnie bardzo pomocne przy 500
+        ini_set('log_errors', '1');
+        set_exception_handler(static function (\Throwable $e): void {
+            error_log('[Liga] Uncaught: ' . $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine());
+            http_response_code(500);
+            echo '<!doctype html><meta charset="utf-8"><title>500</title>'
+               . '<div style="font-family:system-ui;padding:3rem;max-width:640px;margin:auto">'
+               . '<h1 style="color:#b00020">Błąd serwera</h1>'
+               . '<p>Coś poszło nie tak. Skontaktuj się z administratorem.</p>'
+               . '<p><a href="/">← Strona główna</a></p></div>';
+        });
 
         spl_autoload_register(static function (string $class): void {
             if (!str_starts_with($class, 'App\\')) {

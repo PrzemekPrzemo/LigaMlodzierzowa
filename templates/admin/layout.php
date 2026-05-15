@@ -27,6 +27,8 @@ $flashes = $flashes ?? [];
         <nav class="admin-nav">
             <a href="/admin">Pulpit</a>
             <a href="/admin/news">Aktualności</a>
+            <a href="/admin/kluby">Kluby</a>
+            <a href="/admin/zawodnicy">Zawodnicy</a>
             <a href="/admin/rundy">Rundy &amp; wyniki</a>
             <a href="/admin/import">Import CSV</a>
             <a href="/" target="_blank" rel="noopener">Strona ↗</a>

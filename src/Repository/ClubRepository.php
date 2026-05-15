@@ -19,16 +19,16 @@ final class ClubRepository
                    (SELECT d.short FROM team_scores ts2
                     JOIN teams t2 ON t2.id = ts2.team_id
                     JOIN disciplines d ON d.id = t2.discipline_id
-                    WHERE t2.club_id = c.id AND t2.edition_id = :e
+                    WHERE t2.club_id = c.id AND t2.edition_id = :e2
                     ORDER BY ts2.score DESC LIMIT 1) AS best_discipline
             FROM clubs c
             JOIN teams t       ON t.club_id = c.id AND t.edition_id = :e
             LEFT JOIN team_scores ts ON ts.team_id = t.id
-            GROUP BY c.id
+            GROUP BY c.id, c.name, c.short, c.city, c.slug, c.logo
             ORDER BY best_score DESC, c.name ASC
         ";
         $s = $this->pdo->prepare($sql);
-        $s->execute([':e' => $editionId]);
+        $s->execute([':e' => $editionId, ':e2' => $editionId]);
         return $s->fetchAll();
     }
 
