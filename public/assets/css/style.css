@@ -220,7 +220,10 @@ table.results tbody tr:hover{background:#fafbfc}
 .partner{text-align:center}
 .partner a{display:block;filter:grayscale(.2);transition:filter .2s, transform .2s}
 .partner a:hover{filter:none;transform:translateY(-2px)}
-.partner img{height:60px;width:auto}
+.partner{display:flex;flex-direction:column;align-items:center;gap:.4rem;max-width:260px}
+.partner a{display:inline-flex;align-items:center;justify-content:center;height:60px}
+.partner img{height:60px;width:auto;max-width:260px;object-fit:contain;display:block}
+.text-center{text-align:center}
 .partner-text{font-family:var(--font-head);font-weight:800;color:var(--navy)}
 .partner-role{display:block;font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-top:.3rem}
 

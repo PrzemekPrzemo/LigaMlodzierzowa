@@ -67,7 +67,18 @@ if (!$edition) {
 View::share('config',  $config);
 View::share('edition', $edition);
 View::share('hasDb',   $hasDb);
-View::share('partners', $hasDb ? $contentRepo->partners() : []);
+// Footer "Organizator i partnerzy" — top sponsorzy z kategorii patronat/sponsor_glowny/partner.
+// Wszystko edytowalne w /admin/sponsorzy.
+$footerSponsors = [];
+if ($hasDb) {
+    foreach ($mediaRepo->sponsors((int)$edition['id']) as $sp) {
+        if (in_array($sp['category'], ['patronat_honorowy','sponsor_glowny','partner'], true)) {
+            $footerSponsors[] = $sp;
+        }
+        if (count($footerSponsors) >= 6) break;
+    }
+}
+View::share('partners', $footerSponsors);
 View::share('marqueeSponsors', $hasDb ? $mediaRepo->forMarquee((int)$edition['id']) : []);
 View::share('isAdmin', $auth->check());
 
