@@ -24,7 +24,7 @@ final class ClubRepository
             FROM clubs c
             JOIN teams t       ON t.club_id = c.id AND t.edition_id = :e
             LEFT JOIN team_scores ts ON ts.team_id = t.id
-            GROUP BY c.id
+            GROUP BY c.id, c.name, c.short, c.city, c.slug, c.logo
             ORDER BY best_score DESC, c.name ASC
         ";
         $s = $this->pdo->prepare($sql);

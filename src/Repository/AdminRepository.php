@@ -122,9 +122,8 @@ final class AdminRepository
     public function listClubs(): array
     {
         return $this->pdo->query(
-            'SELECT c.*, COUNT(t.id) AS teams_count
-             FROM clubs c LEFT JOIN teams t ON t.club_id = c.id
-             GROUP BY c.id ORDER BY c.name'
+            'SELECT c.*, (SELECT COUNT(*) FROM teams t WHERE t.club_id = c.id) AS teams_count
+             FROM clubs c ORDER BY c.name'
         )->fetchAll();
     }
 

@@ -36,7 +36,7 @@ final class ResultRepository
             JOIN clubs c ON c.id = t.club_id
             LEFT JOIN team_scores ts ON ts.team_id = t.id
             WHERE t.edition_id = :e AND t.discipline_id = :d
-            GROUP BY t.id
+            GROUP BY t.id, t.display_name, c.city
             ORDER BY best_score DESC, t.display_name ASC
         ";
         $stmt = $this->pdo->prepare($sql);
