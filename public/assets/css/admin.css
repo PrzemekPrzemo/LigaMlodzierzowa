@@ -70,7 +70,26 @@
 .flash-err{background:#fae6e9;color:#7a0017;border:1px solid #f3b8c2}
 
 .form-table input[type=text]{padding:.4rem .55rem;border-radius:6px;max-width:120px;text-align:right;font-variant-numeric:tabular-nums}
+.form-table input[readonly]{background:#eef4fb;color:#0a4d8c;cursor:not-allowed;border-color:#b6cef0}
+.tr-computed{background:#f6faff}
+.tag-computed{display:inline-block;font-size:.7rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:.15rem .45rem;border-radius:6px;background:#e0eafc;color:#0a4d8c;margin-left:.4rem}
 .actions{white-space:nowrap;display:flex;gap:.3rem;align-items:center;flex-wrap:wrap}
+.disc-badge{display:inline-block;font-size:.75rem;font-weight:700;letter-spacing:.04em;padding:.2rem .55rem;border-radius:6px;text-transform:uppercase}
+.cat-badge{display:inline-block;font-size:.72rem;font-weight:800;letter-spacing:.05em;padding:.25rem .55rem;border-radius:999px;background:#eef2f7;color:var(--adm-ink,#101622)}
+.cat-badge.cat-patronat{background:#fae6e9;color:#7a0017}
+.cat-badge.cat-sponsor-main{background:linear-gradient(135deg,#fff3c4,#d4af37);color:#503600}
+.cat-badge.cat-sponsor{background:#fff7d6;color:#a05a00}
+.cat-badge.cat-partner{background:#eaf2fb;color:#0a4d8c}
+.cat-badge.cat-media{background:#e6f5ec;color:#0a7a39}
+.cat-badge.cat-tech{background:#eef0f3;color:#3a3a3a}
+.disc-kpn{background:#e8f0fe;color:#0a4d8c;border:1px solid #b6cef0}
+.disc-ppn{background:#fdf0e6;color:#7a3b00;border:1px solid #f5c79a}
+.disc-both{background:linear-gradient(90deg,#e8f0fe 0%,#fdf0e6 100%);color:#3a3a3a;border:1px solid #d3c5b0}
+fieldset.discipline-radio{border:1px solid var(--adm-line,#dfe3eb);border-radius:10px;padding:.4rem .8rem;margin:0;background:#fff}
+fieldset.discipline-radio legend{padding:0 .4rem;font-size:.85rem;font-weight:600;color:var(--adm-ink,#101622)}
+fieldset.discipline-radio label{display:inline-flex;align-items:center;gap:.3rem;font-weight:500;margin-right:.8rem;font-size:.92rem}
+fieldset.discipline-radio input[type=radio]{margin:0}
+fieldset.discipline-radio small{color:var(--adm-muted,#5b6477);font-size:.75rem}
 .adm-sep{border:0;border-top:1px solid var(--adm-line);margin:2rem 0}
 .team-toggle{display:grid;gap:.5rem;max-width:760px}
 .tt-row{display:grid;grid-template-columns:1fr auto auto;gap:.8rem;align-items:center;background:#fff;border:1px solid var(--adm-line);border-radius:10px;padding:.7rem 1rem}

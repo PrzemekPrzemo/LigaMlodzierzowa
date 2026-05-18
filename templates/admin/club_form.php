@@ -86,11 +86,19 @@
     <?php else: ?>
         <div class="table-wrap">
             <table class="results">
-                <thead><tr><th>Nazwisko i imię</th><th class="num">Rocznik</th><th>Płeć</th><th>Licencja</th><th></th></tr></thead>
+                <thead><tr><th>Nazwisko i imię</th><th>Dyscyplina</th><th class="num">Rocznik</th><th>Płeć</th><th>Licencja</th><th></th></tr></thead>
                 <tbody>
-                <?php foreach ($athletes as $a): ?>
+                <?php
+                $discLabels = ['KPN'=>['Karabin','disc-kpn'],'PPN'=>['Pistolet','disc-ppn'],'BOTH'=>['Karabin + Pistolet','disc-both']];
+                foreach ($athletes as $a): ?>
                     <tr>
                         <td><strong><?= $e($a['last_name']) ?> <?= $e($a['first_name']) ?></strong></td>
+                        <td>
+                            <?php if (!empty($a['primary_discipline']) && isset($discLabels[$a['primary_discipline']])):
+                                [$lbl,$cls] = $discLabels[$a['primary_discipline']]; ?>
+                                <span class="disc-badge <?= $cls ?>"><?= $e($lbl) ?></span>
+                            <?php else: ?><span class="muted small">—</span><?php endif; ?>
+                        </td>
                         <td class="num"><?= $e($a['birth_year']) ?></td>
                         <td><?= $e($a['gender'] ?? '—') ?></td>
                         <td class="muted small"><?= $e($a['license_no'] ?? '—') ?></td>

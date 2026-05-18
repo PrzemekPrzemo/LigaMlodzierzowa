@@ -20,6 +20,7 @@
                 <li><a href="/regulamin">Regulamin</a></li>
                 <li><a href="/final-puchar-gdyni" class="hl">Finał &amp; Puchar Gdyni</a></li>
                 <li><a href="/spg">SPG</a></li>
+                <li><a href="/partnerzy">Partnerzy</a></li>
                 <li><a href="/archiwum">Archiwum</a></li>
                 <li><a href="/aktualnosci">Aktualności</a></li>
                 <li><a href="/kontakt">Kontakt</a></li>

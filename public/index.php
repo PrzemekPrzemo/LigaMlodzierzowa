@@ -67,7 +67,19 @@ if (!$edition) {
 View::share('config',  $config);
 View::share('edition', $edition);
 View::share('hasDb',   $hasDb);
-View::share('partners', $hasDb ? $contentRepo->partners() : []);
+// Footer "Organizator i partnerzy" — top sponsorzy z kategorii patronat/sponsor_glowny/partner.
+// Wszystko edytowalne w /admin/sponsorzy.
+$footerSponsors = [];
+if ($hasDb) {
+    foreach ($mediaRepo->sponsors((int)$edition['id']) as $sp) {
+        if (in_array($sp['category'], ['patronat_honorowy','sponsor_glowny','partner'], true)) {
+            $footerSponsors[] = $sp;
+        }
+        if (count($footerSponsors) >= 6) break;
+    }
+}
+View::share('partners', $footerSponsors);
+View::share('marqueeSponsors', $hasDb ? $mediaRepo->forMarquee((int)$edition['id']) : []);
 View::share('isAdmin', $auth->check());
 
 $router = new Router();
@@ -185,6 +197,13 @@ $router->get('/spg', static function () use ($edition, $hasDb, $programRepo, $me
     return View::render('pages/spg', [
         'title' => 'Strzelecki Puchar Gdyni',
         'venue' => $venue, 'sponsors' => $sponsors,
+    ]);
+});
+
+$router->get('/partnerzy', static function () use ($edition, $hasDb, $mediaRepo) {
+    return View::render('pages/partners', [
+        'title'  => 'Partnerzy i sponsorzy — ' . $edition['title'],
+        'groups' => $hasDb ? $mediaRepo->allGroupedByCategory((int)$edition['id']) : [],
     ]);
 });
 
@@ -330,6 +349,7 @@ $router->get('/admin/rundy/{id}/wyniki', static function (array $p) use ($auth, 
         'title' => 'Wyniki: ' . $round['short_label'],
         'round' => $round, 'disciplines' => $disciplines, 'teams' => $teams,
         'scores' => $adminRepo->scoresForRound((int)$round['id']),
+        'computed' => $adminRepo->teamsWithAthleteScores((int)$round['id']),
         'flashes' => Flash::pull(),
     ]);
 });
@@ -338,14 +358,29 @@ $router->post('/admin/rundy/{id}/wyniki', static function (array $p) use ($auth,
     $auth->requireLogin(); Csrf::requireValid();
     if (!$hasDb) { header('Location: /admin/rundy'); exit; }
     $roundId = (int)$p['id'];
-    $added = 0;
+    // Zespoły z wynikami zawodników liczone są automatycznie — ignoruj ręczne wpisy
+    $autoMap = $adminRepo->teamsWithAthleteScores($roundId);
+    $added = 0; $skipped = 0;
     foreach (($_POST['score'] ?? []) as $teamId => $val) {
+        $teamId = (int)$teamId;
+        if (isset($autoMap[$teamId])) { $skipped++; continue; }
         $val = str_replace(',', '.', (string)$val);
         if ($val === '' || !is_numeric($val)) continue;
-        $adminRepo->upsertScore((int)$teamId, $roundId, (float)$val);
+        $adminRepo->upsertScore($teamId, $roundId, (float)$val);
         $added++;
     }
-    Flash::add('ok', "Zapisano wyników: $added.");
+    $msg = "Zapisano wyników ręcznych: $added.";
+    if ($skipped > 0) { $msg .= " Pominięto $skipped zespołów liczonych automatycznie z zawodników."; }
+    Flash::add('ok', $msg);
+    header('Location: /admin/rundy/' . $roundId . '/wyniki'); exit;
+});
+
+$router->post('/admin/rundy/{id}/przelicz', static function (array $p) use ($auth, $hasDb, $adminRepo, $edition) {
+    $auth->requireLogin(); Csrf::requireValid();
+    if (!$hasDb) { header('Location: /admin/rundy'); exit; }
+    $roundId = (int)$p['id'];
+    $count = $adminRepo->recomputeAllTeamsInRound($roundId, (int)$edition['id']);
+    Flash::add('ok', "Przeliczono z wyników zawodników: $count zespołów. Zespoły bez wyników indywidualnych pozostały bez zmian.");
     header('Location: /admin/rundy/' . $roundId . '/wyniki'); exit;
 });
 
@@ -506,6 +541,7 @@ $router->post('/admin/zawodnicy', static function () use ($auth, $hasDb, $adminR
         'last_name'  => $last,
         'birth_year' => (int)($_POST['birth_year'] ?? 0) ?: null,
         'gender'     => in_array($_POST['gender'] ?? '', ['M','K'], true) ? $_POST['gender'] : null,
+        'primary_discipline' => in_array($_POST['primary_discipline'] ?? '', ['KPN','PPN','BOTH'], true) ? $_POST['primary_discipline'] : null,
         'slug'       => $slug,
         'license_no' => trim($_POST['license_no'] ?? '') ?: null,
     ];
@@ -551,6 +587,74 @@ $router->post('/admin/zawodnicy/{id}/wynik/{sid}/delete', static function (array
     $auth->requireLogin(); Csrf::requireValid();
     if ($hasDb) { $adminRepo->deleteAthleteScore((int)$p['sid']); Flash::add('ok','Wynik usunięty.'); }
     header('Location: /admin/zawodnicy/' . (int)$p['id']); exit;
+});
+
+/* ---- CRUD Sponsorzy ---- */
+$router->get('/admin/sponsorzy', static function () use ($auth, $hasDb, $mediaRepo, $adminLayout) {
+    $auth->requireLogin();
+    return $adminLayout('admin/sponsors_list', [
+        'title' => 'Sponsorzy i partnerzy · Panel',
+        'rows'  => $hasDb ? $mediaRepo->listSponsors() : [],
+        'flashes' => Flash::pull(),
+    ]);
+});
+
+$router->get('/admin/sponsorzy/new', static function () use ($auth, $adminLayout) {
+    $auth->requireLogin();
+    return $adminLayout('admin/sponsor_form', [
+        'title' => 'Nowy partner', 'sponsor' => null, 'flashes' => Flash::pull(),
+    ]);
+});
+
+$router->get('/admin/sponsorzy/{id}', static function (array $p) use ($auth, $hasDb, $mediaRepo, $adminLayout) {
+    $auth->requireLogin();
+    $sp = $hasDb ? $mediaRepo->findSponsor((int)$p['id']) : null;
+    if (!$sp) { http_response_code(404); return $adminLayout('admin/sponsor_form', ['title'=>'Brak','sponsor'=>null,'flashes'=>Flash::pull()]); }
+    return $adminLayout('admin/sponsor_form', [
+        'title' => 'Edycja: ' . $sp['name'], 'sponsor' => $sp, 'flashes' => Flash::pull(),
+    ]);
+});
+
+$router->post('/admin/sponsorzy', static function () use ($auth, $hasDb, $mediaRepo, $edition) {
+    $auth->requireLogin(); Csrf::requireValid();
+    if (!$hasDb) { Flash::add('err','Brak bazy.'); header('Location: /admin/sponsorzy'); exit; }
+    $id = isset($_POST['id']) && $_POST['id'] !== '' ? (int)$_POST['id'] : null;
+    $name = trim($_POST['name'] ?? '');
+    if ($name === '') {
+        Flash::add('err','Nazwa jest wymagana.');
+        header('Location: /admin/sponsorzy/' . ($id ?? 'new')); exit;
+    }
+    $allowedCat   = ['patronat_honorowy','sponsor_glowny','sponsor','partner','partner_medialny','partner_techniczny'];
+    $allowedTier  = ['zloto','srebro','braz','partner','patronat'];
+    $allowedScope = ['liga','spg','final','wszystko'];
+    $data = [
+        'edition_id' => (int)($_POST['edition_id'] ?? 0) ?: (int)$edition['id'] ?: null,
+        'name'       => $name,
+        'tier'       => in_array($_POST['tier'] ?? '', $allowedTier, true) ? $_POST['tier'] : 'partner',
+        'category'   => in_array($_POST['category'] ?? '', $allowedCat, true) ? $_POST['category'] : 'partner',
+        'scope'      => in_array($_POST['scope'] ?? '', $allowedScope, true) ? $_POST['scope'] : 'wszystko',
+        'logo'       => trim($_POST['logo'] ?? '') ?: null,
+        'url'        => trim($_POST['url']  ?? '') ?: null,
+        'instagram_url' => trim($_POST['instagram_url'] ?? '') ?: null,
+        'facebook_url'  => trim($_POST['facebook_url']  ?? '') ?: null,
+        'description'   => trim($_POST['description'] ?? '') ?: null,
+        'sort'       => (int)($_POST['sort'] ?? 100),
+        'is_visible' => !empty($_POST['is_visible']) ? 1 : 0,
+    ];
+    try {
+        $newId = $mediaRepo->saveSponsor($id, $data);
+        Flash::add('ok','Zapisano partnera #' . $newId . '.');
+        header('Location: /admin/sponsorzy/' . $newId); exit;
+    } catch (\Throwable $e) {
+        Flash::add('err','Błąd: ' . $e->getMessage());
+        header('Location: /admin/sponsorzy' . ($id ? '/' . $id : '/new')); exit;
+    }
+});
+
+$router->post('/admin/sponsorzy/{id}/delete', static function (array $p) use ($auth, $hasDb, $mediaRepo) {
+    $auth->requireLogin(); Csrf::requireValid();
+    if ($hasDb) { $mediaRepo->deleteSponsor((int)$p['id']); Flash::add('ok','Partner usunięty.'); }
+    header('Location: /admin/sponsorzy'); exit;
 });
 
 /* Import CSV */

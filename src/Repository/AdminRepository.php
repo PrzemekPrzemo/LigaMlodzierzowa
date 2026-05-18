@@ -230,25 +230,29 @@ final class AdminRepository
 
     public function saveAthlete(?int $id, array $data): int
     {
+        $discipline = in_array($data['primary_discipline'] ?? '', ['KPN','PPN','BOTH'], true)
+            ? $data['primary_discipline'] : null;
         if ($id) {
             $s = $this->pdo->prepare(
-                'UPDATE athletes SET club_id=:c, first_name=:fn, last_name=:ln, birth_year=:by, gender=:g, slug=:sl, license_no=:l WHERE id=:i'
+                'UPDATE athletes SET club_id=:c, first_name=:fn, last_name=:ln, birth_year=:by,
+                                     gender=:g, primary_discipline=:pd, slug=:sl, license_no=:l WHERE id=:i'
             );
             $s->execute([
                 ':c'=>$data['club_id'] ?: null, ':fn'=>$data['first_name'], ':ln'=>$data['last_name'],
                 ':by'=>$data['birth_year'] ?: null, ':g'=>$data['gender'] ?: null,
-                ':sl'=>$data['slug'] ?: null, ':l'=>$data['license_no'] ?: null, ':i'=>$id,
+                ':pd'=>$discipline, ':sl'=>$data['slug'] ?: null,
+                ':l'=>$data['license_no'] ?: null, ':i'=>$id,
             ]);
             return $id;
         }
         $s = $this->pdo->prepare(
-            'INSERT INTO athletes (club_id, first_name, last_name, birth_year, gender, slug, license_no)
-             VALUES (:c,:fn,:ln,:by,:g,:sl,:l)'
+            'INSERT INTO athletes (club_id, first_name, last_name, birth_year, gender, primary_discipline, slug, license_no)
+             VALUES (:c,:fn,:ln,:by,:g,:pd,:sl,:l)'
         );
         $s->execute([
             ':c'=>$data['club_id'] ?: null, ':fn'=>$data['first_name'], ':ln'=>$data['last_name'],
             ':by'=>$data['birth_year'] ?: null, ':g'=>$data['gender'] ?: null,
-            ':sl'=>$data['slug'] ?: null, ':l'=>$data['license_no'] ?: null,
+            ':pd'=>$discipline, ':sl'=>$data['slug'] ?: null, ':l'=>$data['license_no'] ?: null,
         ]);
         return (int)$this->pdo->lastInsertId();
     }
@@ -282,11 +286,89 @@ final class AdminRepository
              ON DUPLICATE KEY UPDATE score = VALUES(score), team_id = VALUES(team_id)'
         );
         $s->execute([':a'=>$athleteId, ':r'=>$roundId, ':d'=>$disciplineId, ':t'=>$teamId, ':s'=>$score]);
+        if ($teamId) {
+            $this->recomputeTeamScore($teamId, $roundId);
+        }
     }
 
     public function deleteAthleteScore(int $id): void
     {
+        // Pobierz info o team + round przed usunięciem (do przeliczenia)
+        $info = $this->pdo->prepare('SELECT team_id, round_id FROM athlete_scores WHERE id = :i');
+        $info->execute([':i' => $id]);
+        $row = $info->fetch();
         $this->pdo->prepare('DELETE FROM athlete_scores WHERE id = :i')->execute([':i' => $id]);
+        if ($row && !empty($row['team_id']) && !empty($row['round_id'])) {
+            $this->recomputeTeamScore((int)$row['team_id'], (int)$row['round_id']);
+        }
+    }
+
+    /**
+     * Przelicza team_score na podstawie 3 najlepszych wyników indywidualnych
+     * zawodników z klubu zespołu w tej rundzie i dyscyplinie.
+     * Jeśli żaden zawodnik nie ma wyniku — team_score pozostaje bez zmian
+     * (wpis ręczny pozostaje). Zwraca obliczoną sumę lub null.
+     */
+    public function recomputeTeamScore(int $teamId, int $roundId): ?float
+    {
+        $t = $this->pdo->prepare('SELECT club_id, discipline_id FROM teams WHERE id = :t');
+        $t->execute([':t' => $teamId]);
+        $team = $t->fetch();
+        if (!$team) { return null; }
+
+        $stmt = $this->pdo->prepare(
+            'SELECT ascore.score FROM athlete_scores ascore
+             JOIN athletes a ON a.id = ascore.athlete_id
+             WHERE a.club_id = :c
+               AND ascore.round_id = :r
+               AND ascore.discipline_id = :d
+             ORDER BY ascore.score DESC
+             LIMIT 3'
+        );
+        $stmt->execute([
+            ':c' => (int)$team['club_id'],
+            ':r' => $roundId,
+            ':d' => (int)$team['discipline_id'],
+        ]);
+        $scores = array_map('floatval', $stmt->fetchAll(\PDO::FETCH_COLUMN));
+        if (empty($scores)) { return null; }
+
+        $sum = array_sum($scores);
+        $this->pdo->prepare(
+            'INSERT INTO team_scores (team_id, round_id, score) VALUES (:t, :r, :s)
+             ON DUPLICATE KEY UPDATE score = VALUES(score)'
+        )->execute([':t' => $teamId, ':r' => $roundId, ':s' => $sum]);
+        return $sum;
+    }
+
+    /** Przelicza wszystkie zespoły w rundzie. Zwraca liczbę zaktualizowanych. */
+    public function recomputeAllTeamsInRound(int $roundId, int $editionId): int
+    {
+        $teams = $this->pdo->prepare('SELECT id FROM teams WHERE edition_id = :e');
+        $teams->execute([':e' => $editionId]);
+        $n = 0;
+        foreach ($teams->fetchAll() as $t) {
+            if ($this->recomputeTeamScore((int)$t['id'], $roundId) !== null) {
+                $n++;
+            }
+        }
+        return $n;
+    }
+
+    /** Zwraca mapę team_id => bool (czy zespół ma wyniki zawodników w danej rundzie). */
+    public function teamsWithAthleteScores(int $roundId): array
+    {
+        $sql = "SELECT DISTINCT t.id AS team_id
+                FROM teams t
+                JOIN athletes a ON a.club_id = t.club_id
+                JOIN athlete_scores ascore ON ascore.athlete_id = a.id
+                                          AND ascore.round_id = :r
+                                          AND ascore.discipline_id = t.discipline_id";
+        $s = $this->pdo->prepare($sql);
+        $s->execute([':r' => $roundId]);
+        $map = [];
+        foreach ($s->fetchAll() as $row) { $map[(int)$row['team_id']] = true; }
+        return $map;
     }
 
     /* ---------- Stats ---------- */
