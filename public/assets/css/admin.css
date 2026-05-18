@@ -70,6 +70,9 @@
 .flash-err{background:#fae6e9;color:#7a0017;border:1px solid #f3b8c2}
 
 .form-table input[type=text]{padding:.4rem .55rem;border-radius:6px;max-width:120px;text-align:right;font-variant-numeric:tabular-nums}
+.form-table input[readonly]{background:#eef4fb;color:#0a4d8c;cursor:not-allowed;border-color:#b6cef0}
+.tr-computed{background:#f6faff}
+.tag-computed{display:inline-block;font-size:.7rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:.15rem .45rem;border-radius:6px;background:#e0eafc;color:#0a4d8c;margin-left:.4rem}
 .actions{white-space:nowrap;display:flex;gap:.3rem;align-items:center;flex-wrap:wrap}
 .disc-badge{display:inline-block;font-size:.75rem;font-weight:700;letter-spacing:.04em;padding:.2rem .55rem;border-radius:6px;text-transform:uppercase}
 .cat-badge{display:inline-block;font-size:.72rem;font-weight:800;letter-spacing:.05em;padding:.25rem .55rem;border-radius:999px;background:#eef2f7;color:var(--adm-ink,#101622)}

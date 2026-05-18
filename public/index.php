@@ -349,6 +349,7 @@ $router->get('/admin/rundy/{id}/wyniki', static function (array $p) use ($auth, 
         'title' => 'Wyniki: ' . $round['short_label'],
         'round' => $round, 'disciplines' => $disciplines, 'teams' => $teams,
         'scores' => $adminRepo->scoresForRound((int)$round['id']),
+        'computed' => $adminRepo->teamsWithAthleteScores((int)$round['id']),
         'flashes' => Flash::pull(),
     ]);
 });
@@ -357,14 +358,29 @@ $router->post('/admin/rundy/{id}/wyniki', static function (array $p) use ($auth,
     $auth->requireLogin(); Csrf::requireValid();
     if (!$hasDb) { header('Location: /admin/rundy'); exit; }
     $roundId = (int)$p['id'];
-    $added = 0;
+    // Zespoły z wynikami zawodników liczone są automatycznie — ignoruj ręczne wpisy
+    $autoMap = $adminRepo->teamsWithAthleteScores($roundId);
+    $added = 0; $skipped = 0;
     foreach (($_POST['score'] ?? []) as $teamId => $val) {
+        $teamId = (int)$teamId;
+        if (isset($autoMap[$teamId])) { $skipped++; continue; }
         $val = str_replace(',', '.', (string)$val);
         if ($val === '' || !is_numeric($val)) continue;
-        $adminRepo->upsertScore((int)$teamId, $roundId, (float)$val);
+        $adminRepo->upsertScore($teamId, $roundId, (float)$val);
         $added++;
     }
-    Flash::add('ok', "Zapisano wyników: $added.");
+    $msg = "Zapisano wyników ręcznych: $added.";
+    if ($skipped > 0) { $msg .= " Pominięto $skipped zespołów liczonych automatycznie z zawodników."; }
+    Flash::add('ok', $msg);
+    header('Location: /admin/rundy/' . $roundId . '/wyniki'); exit;
+});
+
+$router->post('/admin/rundy/{id}/przelicz', static function (array $p) use ($auth, $hasDb, $adminRepo, $edition) {
+    $auth->requireLogin(); Csrf::requireValid();
+    if (!$hasDb) { header('Location: /admin/rundy'); exit; }
+    $roundId = (int)$p['id'];
+    $count = $adminRepo->recomputeAllTeamsInRound($roundId, (int)$edition['id']);
+    Flash::add('ok', "Przeliczono z wyników zawodników: $count zespołów. Zespoły bez wyników indywidualnych pozostały bez zmian.");
     header('Location: /admin/rundy/' . $roundId . '/wyniki'); exit;
 });
 
